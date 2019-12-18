@@ -298,8 +298,9 @@ This data structure contains a user-interceptable error encountered during valid
 - `description`: Message telling about the error, such as guiding where the error occured or where the user went wrong.
 
 ### Validation Output Object (Write Only)
-*This data structure is incomplete as it wasn't planned properly*
-This data structure represents the outcome of the validation of arguments.
+*This data structure is incomplete as it wasn't planned properly.*
+
+This data structure represents the outcome of the validation of arguments, and is generated after [Path Selection](#path-selection).
 
 ```js
 {
@@ -318,7 +319,7 @@ This data structure represents the outcome of the validation of arguments.
 - `state`: State of the outcome, relative to the selected path.
 - `status`: Error name relative  to the `state` property's value.
 - `values`: Object containing `name.reference:value` pairs where `name.reference` is the reference name set as the property name of the registered processed argument as `value`.
-- `error`: Object containing error details (if there is an error present on the selected path). Contains [Validation Error Object](#validation-error-object) combined with addtional properties (unplanned).
+- `error`: Object containing error details (if there is an error present on the selected path). Contains [Validation Error Object](#validation-error-object-read-and-write) combined with addtional properties (unplanned).
 
 
 ## Parsing
