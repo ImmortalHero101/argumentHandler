@@ -5,12 +5,17 @@ An argument handling module for spuiiBot.
 [Motive](#motive)  
  - [Introduction to Argument Handler](#introduction-to-argument-handler)
  - [Data Structures](#data-structures)
-   - [Command Argument Structure Object (Read-Only)](#command-argument-structure-object-read-only)
+   - [Command Argument Structure Object](#command-argument-structure-object-read-only)
      - [Main Object](#main-object)
      - [Paths Object](#paths-object)
      - [Components Object](#components-object)
        - [Types Available](#types-available)
        - [Meaningful Associates](#meaningful-associates)
+   - [Progress Data Object (Read and Write)](#progress-data-object-read-and-write)
+   - [Validator Status Class Object (Read and Write)](#validator-status-class-object-read-and-write)
+   - [Component State Object (Read Only)](#component-state-object-read-only)
+   - [Validation Error Object (Read and Write)](#validation-error-object-read-and-write)
+   - [Validation Output Object (Write Only)](#validation-output-object-write-only)
  - [Parsing](#parsing)
  - [Pre-validation code flow](#pre-validation-code-flow)
  - [Validation](#validation)
@@ -109,12 +114,12 @@ To avoid unexpected behaviour, there are some requisites to constructing this pa
 - `components`:  Array containing the argument structures of the path, each position in Array representing the argument number it represents and will be evaluated against.
 
 #### Components Object
-Finally, the **Components Object** (`pathComponent` as reference name) that contains (or defines) the structure of the argument that would be in the position same as of this data structure in its array.
+Finally, the **Components Object** (`pathComponent` as reference name, component as alternative name) that contains (or defines) the structure of the argument that would be in the position same as of this data structure in its array.
 
 To avoid unexpected behaviour, there are some requisites to constructing this part of the **Command Argument Structure Object**. They are:
-- There should be at least one mandatory `pathComponent` per path.
-- The first `pathComponent` object should not contain the `fromPrev` property, as there is no property behind it.
-- There should be at least one specified associate pathComponent property before that associate is used.
+- There should be at least one mandatory component per path.
+- The first component object should not contain the `fromPrev` property, as there is no property behind it.
+- There should be at least one specified associate component property before that associate is used.
 
 ```js
 {
@@ -149,7 +154,7 @@ To avoid unexpected behaviour, there are some requisites to constructing this pa
 - `isOptional`?: (Not implemented) Determines whether the current parameter is optional and jumps to the next argStructure with the current argument in case there is an error in the current argStructure. Keeps on jumping to the next argStructure in case of error, till a mandatory argStructure is encountered.
 - `ignoreArg`?: (Provisional, currently stuck on and might be dumped) Object containing `associate:value` pairs, which will check respective associates with the value provided. If there is a match, then this argStructure will not be evaulated and validator will jump to the next path.
 - `criteria`?: Criteria options as `criteria:value` pairs based on the selected `type` option. The argument will be evaulated against these criteria options, and an error will be thrown on a mismatch. Refer to [Types avaliable](#types-available) for each `type`'s accepted criteria.
-- `fromPrev`?: Sets the current `pathComponent`'s properties according to the previous `pathComponent`'s argument selected from its `values` array property. Properties accepted are: `type`, `descriptor`, `values` and `criteria`.
+- `fromPrev`?: Sets the current component's properties according to the previous component's argument selected from its `values` array property. Properties accepted are: `type`, `descriptor`, `values` and `criteria`.
 
 
 ##### Types available
@@ -208,10 +213,112 @@ To avoid unexpected behaviour, there are some requisites to constructing this pa
 
 ---
 
-### Argument Parse State
-### Validator Status Class Object
-### Validation Error Object
-### Function Output Object
+### Argument Parse State (Read and Write)
+This data structure determines the parse state of each parsed argument segment, returned as a collection in an array (called **Parse State Array**) by the Argument Parser. It is used to determine a potential flaw in argument syntax and used by the Control Flow to readjust arguments according to argument segment structure types.
+
+```js
+{
+  state: Integer,
+  value: String | Array
+}
+```
+- `state`: Represents the state of the argument segment.
+  - `0`: `UNPARSED`; Is set to the state object on its creation, and most likely would not be seen outside of the Argument Parser.
+  - `1`: `PARSED`; Successful parse
+  - `2`: `INCOMPLETE_QUOTES`; The value captured did not have a closing quote and is the substring of the rest of the argument. This should be the last Parse State in the Parse State array. (Unimplemented)
+  - `3`: `INCOMPLETE_LIST`; The list captured did not have a delimiter (quotes, semi-colon at the end, brackets) and the parser made one according to the best match. (Unimplemented)
+- `value`: The value(s) captured
+
+### Progress Data Object (Read and Write)
+This data structure contains data relevant to the progression of a path, generated by Flow Control, and will be used in [Path Selection](#path-selection) for selecting a single path relevant to its progression data.
+
+```js
+{
+  componentIndex: Integer,
+  progress: Float,
+  unparsedArg: Integer,
+  unparsedComp: Integer
+}
+```
+- `componentIndex`: The index of last *selected* component by Flow control.
+- `progress`: Percentage (in decimal) of total components processed relative to total components present.
+- `unparsedArg`: Number of argument segments unprocessed by the end of Flow Control loop of the current path.
+- `unparsedComp`: Number of components unprocessed by the end of Flow Control loop of the current path.
+
+### Validator Status Class Object (Read and Write)
+This data structure is generated through a class (called **ValidatorStatus**) and is modified internally in the class. It contains data related to the current path, including path's progress data, associates and data related to validation of its components. It also contains a inherited prototypial method (from its class) that validates a component.
+
+```js
+{
+  progressData: Object,
+  associates: Object,
+  state: Integer,
+  validatedComponents: Array,
+  validateComponent: [Prototypial Method](value: String, pathComponent: Object)
+}
+```
+- `progressData`: Contains [Progress Data Object](#progress-data-object-read-and-write)
+- `associates`: Contains associates in `associate:value` pairs where `associate` is the name of an associate.
+- `state`: Overall state of the parsing of the path's components. Usually the last element of `validatedComponents` contains the errored component if the state is errored.
+  - `0`: `UNVALIDATED`; Is set on object creation, and most likely would not be seen outside of the class.
+  - `1`: `VALIDATED`; All components parsed successfully.
+  - `2`: `ERROR`; Validation unsuccessful due to validation error in (one of) the component(s).
+- `validatedComponents`: An array containing [Component State Objects](#component-state-object-read-only).
+- `validateComponent`: A prototypial (inherited) method that processes the next argument segment against its relevant component, both of which are provided to the method as arguments.
+
+### Component State Object (Read Only)
+This data structure is generated through a class (called **TypeClass**) and is modified internally in the class. It contains data related to the state of the current component. Its class also contains a static method to generate the `usage` property value according to the value of the `type` property of the current component.
+
+```js
+{
+  value: Any,
+  error: String
+}
+```
+- `value`: Contains the unprocessed value of argument segment on initialization, and is most likely changed to program-interceptable variant of the modified value later on in the code.
+- `error`: Contains [Validation Error Object](#validation-error-object-read-and-write)
+
+### Validation Error Object (Read and Write)
+This data structure contains a user-interceptable error encountered during validation of the argument segment for rightly guiding the user.
+
+```js
+{
+  code: Integer,
+  usage: String,
+  description: String
+}
+```
+- `code`: Code of the error, which is used as index to the Argument Errors array containing the first part of the error. These errors are:
+  - `0`: `INCOMPLETE_QUOTES`; "You may have forgotten to close the quotes"
+  - `1`: `INVALID`; "You provided an invalid"
+  - `2`: `UNACCEPTED`; "You provided an unaccepted"
+  - '3': `BLANK`; "You did not provide the"
+  - '4': `OUT_OF_RANGE`: "The provided value is out of range for the"
+- `usage`: Message telling what kind of value to provide.
+- `description`: Message telling about the error, such as guiding where the error occured or where the user went wrong.
+
+### Validation Output Object (Write Only)
+*This data structure is incomplete as it wasn't planned properly*
+This data structure represents the outcome of the validation of arguments.
+
+```js
+{
+  state: Integer,
+  status: String,
+  values: Object,
+  error: {
+    description: String,
+    usage: String,
+    fault: {
+      detectedPath: String
+    }
+  }
+}
+```
+- `state`: State of the outcome, relative to the selected path.
+- `status`: Error name relative  to the `state` property's value.
+- `values`: Object containing `name.reference:value` pairs where `name.reference` is the reference name set as the property name of the registered processed argument as `value`.
+- `error`: Object containing error details (if there is an error present on the selected path). Contains [Validation Error Object](#validation-error-object) combined with addtional properties (unplanned).
 
 
 ## Parsing
