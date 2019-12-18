@@ -2,7 +2,7 @@
 An argument handling module for spuiiBot.
 
 # Motive
-The main theme of the bot is a good User Interface, which is to be able to perform complex tasks with ease of use. However, with time, spuiiBot grew as new commands and functionalities were being added and made the overall code relatively large and complex, and adding new code often involved repeating old functionalities to make the new code exeuctable. Some of these old functionalities are chains of permission and argument checks, which also needed to generate a command-specific Error Message to rightly guide the user in using that command. In most cases, these checks were often larger than the actual functionality code of the command, making a huge clutter and reducing productivity if a command with similar amount of functionality code were to be created. Therefore, I decided to make a module that would handle command-exclusive argument and permission checking separately and with additional utility features that would be hard to implement otherwise.
+The main theme of the bot is a good User Interface, which is to be able to perform complex tasks with ease of use. However, with time, spuiiBot grew as new commands and functionalities were being added and made the overall code relatively large and complex, and adding new code often involved repeating old functionalities to make the new code exeuctable. Some of these old functionalities are chains of permission and argument checks, which also needed to generate a command-specific Error Message to rightly guide the user in using that command. In most cases, these checks were often larger than the actual functionality code of the command, making a huge clutter and reducing productivity in developing these commands, or if a command with similar amount of functionality code were to be created. Therefore, I decided to make a module that would handle command-exclusive argument and permission checking and with additional utility features that would be hard to implement otherwise. This would be yet another complex feature implemented to the bot to maintain  the developing productivity and improve user experience as a result of reduced errors and unexpected behaviour caused by invalid input data.
 
 A Permission Handler was easy to make as I just had to define the permissions in a command's code required to run that command and then intercept this data when the command is being run to resolve and validate permissions of the instances (member/bot) defined in the data. My focus now shifts to Argument Handler, which is a more complex module, and will be my main focus in this article.
 
@@ -125,40 +125,59 @@ Finally, the Components Object (`pathComponent` as reference name) that contains
 - `criteria`: Criteria options as `criteria:value` pairs based on the selected `type`. The argument will be evaulated against these criteria options, and an error will be thrown on a mismatch. Refer to [Types avaliable](#types-available) for each `type`'s accepted criteria.
 - `fromPrev`: *Incomplete description*
 
+
 ##### Types available
 **Base Types:**
 - `String`: Accepts any data type, which will be processed to a String.
-  - **Criteria Options:**
-    - `min`: (Integer) Minimum length of the text to accept. Defaults to `1` and cannot be smaller than `1` and larger than `1990` or `max` property.
-    - `max`: (Integer) Maximum length of the text to accept. Defaults to `2000`, and cannot be larger than `2000` and smaller than `1` or the `min` property.
-    - `long`: (Boolean, non-functional) To accept arguments containing more than one word (these are generally quoted arguments). Defaults to `false`
-    - `format`: (RegExp, non-functional) To check the argument against a Regular Expression. Defaults to `null`
+
+| Criteria Options  | Description |
+| ----------------- | ----------- |
+| `min`  | (Integer) Minimum length of the text to accept. Defaults to `1` and cannot be smaller than `1` and larger than `1990` or `max` property. |
+| `max` | (Integer) Maximum length of the text to accept. Defaults to `2000`, and cannot be larger than `2000` and smaller than `1` or the `min` property. |
+| `long`  | (Boolean, non-functional) To accept arguments containing more than one word (these are generally quoted arguments). Defaults to `false`. |
+| `format`  | (RegExp, non-functional) To check the argument against a Regular Expression. Defaults to `null` |
+
+
 - `Number`: Accepts a number argument, which will be processed to Number value.
-  - **Criteria Options:**
-    - `min`: (Number) Lower bound of the number to accept. Defaults to `-Infinity`, and cannot be `+Infinity` or larger than `max` property.
-    - `max`: (Number) Upper bound of the number to accept. Defaults to `Infinity`, and cannot be `-Infinity` or smaller than `min` property.
-    - `intOnly`: (Boolean) To accept a number as an integer. Defaults to `false`.
+
+| Criteria Options | Description |
+| ---------------- | ----------- |
+| `min` | (Number) Lower bound of the number to accept. Defaults to `-Infinity`, and cannot be `+Infinity` or larger than `max` property. |
+|`max` | (Number) Upper bound of the number to accept. Defaults to `Infinity`, and cannot be `-Infinity` or smaller than `min` property. |
+| `intOnly` | (Boolean) To accept a number as an integer. Defaults to `false`.
 - `Boolean`: Accepts either `"true"` or `"false"`.
+ 
+ 
  
 **Composite Types** (Not implemented yet, depend on base types or each other. All types listed are provisional and may be changed or removed)
 - `Guild`: Accepts Guild ID, which will be processed to Guild Object.
   - Derived from String with defined `format` criteria.
-  - **Criteria Options:**
-    - `multiple`: (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false`
-    - `reject`: (Array[GuildID]) Array containing ID's of guilds to reject
-    - `rejectError`: (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default.
+  
+| Criteria Options | Description |
+| ---------------- | ----------- |
+| `multiple` | (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false` |
+| `reject` | (Array[GuildID]) Array containing ID's of guilds to reject |
+| `rejectError` | (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default. |
+
+
 - `User`: Accepts User ID, Mention or Username/Nickname, which will be processed to User Object.
   - Derived from String with defined `format` criteria.
-  - **Criteria Options:**
-    - `multiple`: (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false`
-    - `reject`: (Array[UserID]) Array containing ID's of users to reject
-    - `rejectError`: (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default.
+  
+| Criteria Options | Description |
+| ---------------- | ----------- |
+| `multiple` | (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false` |
+| `reject` | (Array[UserID]) Array containing ID's of users to reject |
+| `rejectError` | (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default. |
+
+
 - `Member`: Accepts Member ID, Mention or Username/Nickname, which will be processed to Member Object of the current guild.
   - Derived from User.
-  - **Criteria Options:**
-    - `multiple`: (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false`
-    - `reject`: (Array[MemberID]) Array containing ID's of members to reject
-    - `rejectError`: (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default.
+  
+| Criteria Options | Description |
+| ---------------- | ----------- |
+| `multiple` | (Boolean) To allow user to have multiple instances included in this argument. Defaults to `false` |
+| `reject` | (Array[MemberID]) Array containing ID's of members to reject |
+| `rejectError` | (String) Error message to show if a rejected instance is encountered. Doesn't show an error message by default. |
 - `Link`: Accepts a link.
   - Derived from String with defined `format` criteria.
 
