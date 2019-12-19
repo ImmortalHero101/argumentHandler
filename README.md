@@ -209,7 +209,8 @@ To avoid unexpected behaviour, there are some requisites to constructing this pa
   - Derived from String with defined `format` criteria.
 
 ##### Meaningful Associates
-*Incomplete section*
+- `action`: The action that is being performed through using the command. Mainly used for constructing error message `description` property.
+- `field`: The field an action is being performed on. Mainly used for constructing error message `description` property.
 
 ---
 
