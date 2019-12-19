@@ -324,10 +324,15 @@ This data structure represents the outcome of the validation of arguments, and i
 
 
 ## Parsing
-*This section is incomplete*
-The first step is to parse the arguments. The **Argument Parser** will split the argument string into separate parts, each representing a single argument *to* one of the command's parameter (in order of left to right). Some features include:
-- Splitting the argument string into argument segments for each space character encountered.
-- Considering quoted text as argument to a single command parameter.
+The first step is to parse the arguments. This part involves splitting the argument string into separate parts, each representing a single argument *to* one of the command's parameter (in order of left to right). We'll be looking out for 2 details when determining whether a part of this argument string is a single argument: Single words and Quoted text.
+
+Picking out single words is relatively easy as each word is a series of character, in series, that is *not* a space character (other whitespace characters are considered as a part of the word). Therefore, we can use a space character as the split key to break down the argument into its segments, and each segment would almost represent a single argument. As the space character is used as a split key and the argument can have multiple space characters in series, the resulting Array would contain blank elements due to this, which can be worked around with by filtering the array to remove any 'falsey' values (by passing the Boolean constructor as the callback to the filter method).
+
+Next thing we need to look at are Quoted text as single arguments. A piece of text is quoted if it is wrapped around quotes (we'll be considering both single and double quotes). The technique we chose is to work with the argument pieces array to find elements that start with a quote, group together the following elements till an element ending with the same quote is encountered (we'll be considering the different quote as a part of the text). Accordingly, a loop is set up to iterate through the argument segments array to find and group quoted text, as well as make a [status object](#argument-parse-state-read-and-write) for both single arguments and quoted arguments to form a resulting array. In case the loop was unable to find an element ending with the same quote, it will throw an error (this will be changed to return the processed result along with the status code). Since the loop  was unable to find the ending quote, it would have captured the rest of the argument, meaning that if there were distinct arguments after the quoted argument, then it got included in the quoted argument too. This gives the rise to the idea of readjusting the arguments from the parameter accepting quoted text as a single argument onwards, which will be done by validating whether argument pieces from the end match their types as stated in their assigned component object.
+
+The resulting array is then returned.
+
+Ohter planned features include:
 - Capture comma-separated arguments as lists, which is a group of data for a single parameter. (Planned)
 - Auto-adjust arguments if its quoting/listing isn't clear. (Provisional)
 
