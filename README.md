@@ -336,8 +336,19 @@ Ohter planned features include:
 - Capture comma-separated arguments as lists, which is a group of data for a single parameter. (Planned)
 - Auto-adjust arguments if its quoting/listing isn't clear. (Provisional)
 
-## Pre-validation code flow
+## Pre-validation Code Flow
+The next step would be to validate these freshly processed arguments, which would be done by linking each argument segment to a component and then validating it according to the data in that component. Starting off, we have to figure out how to get through the [Command Argument Structure Object](#command-argument-structure-object-read-only) (aka. `argStructure`) to each component object so that we can link it with an argument segment. We know that there is a possibility of multiple paths with each containing a different component data structure combination, thus we need to provide the *same* argument segments to each of the components of each of the paths.
+
+### Control Flow Loops
 *This section is incomplete*
+
+An approach to this situation would be to iterate through all the paths using a loop (called `pathLoop`), exposing each path's properties in the iteration and ultimately allowing us to access the componens of the path, and since the `paths` property of `argStructure` is an Array, we can use its length as the number of iterations to do and use the iteration number to access the path object from the `paths` array. It doesn't stop there, we still have to figure out how to get the components object from each path object and link argument segments to them. We can use the same technique as we did with the paths (but we'll be calling the loop `componentLoop`) as the `components` property of a path object contains an array of components, but this will be done *inside* of `pathLoop` as it is where the path object is exposed, and ultimately the `components` array. We again use the length of this array as the number of iterations and use the current iteration number to access the component object. Now that we have access to each of the components of each of the paths inside `componentLoop` loop, we can start forming links with argument segments and then continue to validation.
+
+To form links beween arguments and components, we need to find a common pattern between them. Since the arguments are being provided in the order of the usage of the command, and where each segment is associated to a command parameter, the pattern here is that each command is provided in order to the usage to the command, therefore each segment has to be associated to a component in order. We can make use of iteration number of `componentLoop` to form links with argument segments by retrieving the segment from the same iteration number. This way we are exposed to components of paths orderly and retrieve argument segments orderly too. This logic helps us iterate through the same argument segments for each of the paths as we are relying on the iteration number of `componentLoop`, which resets to 0 after each iteration of `pathLoop`, therefore allowing us to retrieve the argument segments from the start for each path.
+
+### Variable Initialization and Pre-defined Classes
+We then proceed to doing the validation check on the current argument segment, but we also need to save the data as when the validation is successful, we need to store the returned processed value so that it is later accessible by the command, and when it is unsuccessful, we need to store the validation errors. Remember that we don't know which path the user intended to use, so we have to figure it out by ourselves and to do that, we will need to see which path the argument seems to be matching the best. Knowing this, we need to collect data produced in each path for comparison that will take place later on in the code (in [Path Selection](#path-selection)). We also only need to collect data for each path till we've encountered an error as this indicates that any following argument segments will be erroneous too, so we'll be modifying the `componentLoop` to stop when an error is encountered. This is handled by [Loop Escape Logic](#loop-escape-logic).
+
 
 ## Validation
 *This section is incomplete*
@@ -358,8 +369,10 @@ Error generation with a reliable descripton and the command's usage instructions
 ### Error Message generation
 *This section is incomplete*
 
-## Post-validation code flow
+## Post-validation Code Flow
 *This section is incomplete*
+
+### Loop Escape Logic
 
 ## Path Selection
 *This section is incomplete*
