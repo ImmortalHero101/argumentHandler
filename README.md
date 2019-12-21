@@ -12,7 +12,7 @@ An argument handling module for spuiiBot.
        - [Types Available](#types-available)
        - [Meaningful Associates](#meaningful-associates)
    - [Progress Data Object (Read and Write)](#progress-data-object-read-and-write)
-   - [Validator Status Class Object (Read and Write)](#validator-status-class-object-read-and-write)
+   - [Validator Status Class Object (Read and Write)](#validator-state-class-object-read-and-write)
    - [Component State Object (Read Only)](#component-state-object-read-only)
    - [Validation Error Object (Read and Write)](#validation-error-object-read-and-write)
    - [Validation Output Object (Write Only)](#validation-output-object-write-only)
@@ -246,7 +246,7 @@ This data structure contains data relevant to the progression of a path, generat
 - `unparsedArg`: Number of argument segments unprocessed by the end of Flow Control loop of the current path.
 - `unparsedComp`: Number of components unprocessed by the end of Flow Control loop of the current path.
 
-### Validator Status Class Object (Read and Write)
+### Validator State Class Object (Read and Write)
 This data structure is generated through a class (called **ValidatorStatus**) and is modified internally in the class. It contains data related to the current path, including path's progress data, associates and data related to validation of its components. It also contains a inherited prototypial method (from its class) that validates a component.
 
 ```js
@@ -264,10 +264,10 @@ This data structure is generated through a class (called **ValidatorStatus**) an
   - `0`: `UNVALIDATED`; Is set on object creation, and most likely would not be seen outside of the class.
   - `1`: `VALIDATED`; All components parsed successfully.
   - `2`: `ERROR`; Validation unsuccessful due to validation error in (one of) the component(s).
-- `validatedComponents`: An array containing [Component State Objects](#component-state-object-read-only).
+- `validatedComponents`: An array containing [Component State Objects](#component-state-class-object-read-only).
 - `validateComponent`: A prototypial (inherited) method that processes the next argument segment against its relevant component, both of which are provided to the method as arguments.
 
-### Component State Object (Read Only)
+### Component State Class Object (Read Only)
 This data structure is generated through a class (called **TypeClass**) and is modified internally in the class. It contains data related to the state of the current component. Its class also contains a static method to generate the `usage` property value according to the value of the `type` property of the current component.
 
 ```js
@@ -337,18 +337,31 @@ Ohter planned features include:
 - Auto-adjust arguments if its quoting/listing isn't clear. (Provisional)
 
 ## Pre-validation Code Flow
-The next step would be to validate these freshly processed arguments, which would be done by linking each argument segment to a component and then validating it according to the data in that component. Starting off, we have to figure out how to get through the [Command Argument Structure Object](#command-argument-structure-object-read-only) (aka. `argStructure`) to each component object so that we can link it with an argument segment. We know that there is a possibility of multiple paths with each containing a different component data structure combination, thus we need to provide the *same* argument segments to each of the components of each of the paths.
+The next step would be to validate these freshly processed arguments, which would be done by linking each argument segment to a component and then validating it according to the data in that component. Starting off, we have to figure out how to get through the [Command Argument Structure Object](#command-argument-structure-object-read-only) (aka. `argStructure`) to each component object so that we can link it with an argument segment. We know that there is a possibility of multiple paths with each containing a different component data structure combination, thus we need to provide the *same* argument segments to each of the components of each of the paths. We also don't know which path fits the arguments provided and we'll be determining this through evaulation in [Path Selection](#path-selection) after collecting relevant data.
 
 ### Control Flow Loops
-*This section is incomplete*
-
 An approach to this situation would be to iterate through all the paths using a loop (called `pathLoop`), exposing each path's properties in the iteration and ultimately allowing us to access the componens of the path, and since the `paths` property of `argStructure` is an Array, we can use its length as the number of iterations to do and use the iteration number to access the path object from the `paths` array. It doesn't stop there, we still have to figure out how to get the components object from each path object and link argument segments to them. We can use the same technique as we did with the paths (but we'll be calling the loop `componentLoop`) as the `components` property of a path object contains an array of components, but this will be done *inside* of `pathLoop` as it is where the path object is exposed, and ultimately the `components` array. We again use the length of this array as the number of iterations and use the current iteration number to access the component object. Now that we have access to each of the components of each of the paths inside `componentLoop` loop, we can start forming links with argument segments and then continue to validation.
 
 To form links beween arguments and components, we need to find a common pattern between them. Since the arguments are being provided in the order of the usage of the command, and where each segment is associated to a command parameter, the pattern here is that each command is provided in order to the usage to the command, therefore each segment has to be associated to a component in order. We can make use of iteration number of `componentLoop` to form links with argument segments by retrieving the segment from the same iteration number. This way we are exposed to components of paths orderly and retrieve argument segments orderly too. This logic helps us iterate through the same argument segments for each of the paths as we are relying on the iteration number of `componentLoop`, which resets to 0 after each iteration of `pathLoop`, therefore allowing us to retrieve the argument segments from the start for each path.
 
 ### Variable Initialization and Pre-defined Classes
-We then proceed to doing the validation check on the current argument segment, but we also need to save the data as when the validation is successful, we need to store the returned processed value so that it is later accessible by the command, and when it is unsuccessful, we need to store the validation errors. Remember that we don't know which path the user intended to use, so we have to figure it out by ourselves and to do that, we will need to see which path the argument seems to be matching the best. Knowing this, we need to collect data produced in each path for comparison that will take place later on in the code (in [Path Selection](#path-selection)). We also only need to collect data for each path till we've encountered an error as this indicates that any following argument segments will be erroneous too, so we'll be modifying the `componentLoop` to stop when an error is encountered. This is handled by [Loop Escape Logic](#loop-escape-logic).
+We then proceed to doing the validation check on the current argument segment, but we also need to save the data as when the validation is successful, we need to store the returned processed value so that it is later accessible by the command, or otherwise store the validation errors. Therefore, we'll be creating a [state object](#component-state-class-object-read-only) (Component State Object) for each validation, and these state objects will be ordered to represent each component orderly. Since there are multiple paths, we'll need to store these ordered states according to their paths, which in turn will be stored in an orderly manner.
 
+Remember that we don't know which path the user intended to use, so we have to figure it out by ourselves. We will need to see which path the argument seems to be matching the best. Knowing this, we need to collect data produced in each path for comparison that will take place later on in the code (in [Path Selection](#path-selection)). We also only need to collect data for each path till we've encountered an error as this indicates that any following evaulations will be erroneous too, so we'll be modifying the `componentLoop` to stop when an error is encountered (This is covered in [Loop Escape Logic](#loop-escape-logic)). Now we're going to attempt to collect relevant data on the basis of the path's progression. We came to know that there is a possibility that some components might be left unattended, which means that the `componentLoop` wouldn't always iterate according to the number of components a path has. So we'll be storing the iteration number of `componentLoop`, the number of paths left unattended (`unattendedComp`) and percentage completion (in decimal) of the loop. Then we also have a possibility that the user provided more or less number of argument segments than they should have so we'll be storing the number of those segments left unattended too. This data accounts for the progress of a path, and will be stored in a different data structure called [Progress Data](#progress-data-object-read-and-write).
+
+We'll also be creating an associates object for each path to contain data that needs to be stored for later components of that path. The purpose and the use of this data structure will be discussed later in this article.
+
+In order to store this data, we'll be creating another [state object](#validator-state-class-object-read-and-write) which will be created using a class. Each path will store this data as well as the path's Component State Objects, so that it contains all the data related to that path.
+
+Moving on, the variables being created are:
+- `parsedArguments` which contains processed argument segments in order. This is going to be fixed throughout the evaulation.
+- `pathStatuses` which contains the state objects of paths in order of each path's index in the `paths` property array of [Command Argument Structure Object](command-argument-structure-object-read-only), which will be done using the iteration number of `pathLoop` as it iterates from the first index to the last index.
+- `pathIndex` to hold the iteration number of `pathLoop`. Initialized with the loop.
+- `progressData` which will be created inside of `pathLoop` so that it is initialized on each iteration and also so that the path is exposed throughout that iteration and each iteration in `componentLoop` so that we can constantly update it.
+- `associates`, same as `progressData`, but holds different data.
+- `componentIndex` to hold the iteration number of `componentLoop`. Initialized with the loop.
+
+Next comes the validation part, which will be done inside the Path State and Component State classes, and will be covered in the next section.
 
 ## Validation
 *This section is incomplete*
