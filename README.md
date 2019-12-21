@@ -3,7 +3,12 @@ An argument handling module for spuiiBot.
 
 ##### Table of Contents  
 [Motive](#motive)  
- - [Introduction to Argument Handler](#introduction-to-argument-handler)
+ - [Introduction to Argument Handler](#introduction-to-argument-handling)
+   - [General Command Usage](#general-command-usage)
+     - [Prefix](#prefix)
+     - [Command](#command)
+     - [Arguments](#arguments)
+   - [Implementation](#argument-handling-implementation)
  - [Data Structures](#data-structures)
    - [Command Argument Structure Object](#command-argument-structure-object-read-only)
      - [Main Object](#main-object)
@@ -30,18 +35,49 @@ An argument handling module for spuiiBot.
 ---
 
 # Motive
-The main theme of the bot is a good User Interface, which is to be able to perform complex tasks with ease of use. However, with time, spuiiBot grew as new commands and functionalities were being added and made the overall code relatively large and complex, and adding new code often involved repeating old functionalities to make the new code exeuctable. Some of these old functionalities are chains of permission and argument checks, which also needed to generate a command-specific Error Message to rightly guide the user in using that command. In most cases, these checks were often larger than the actual functionality code of the command, making a huge clutter and reducing productivity in developing these commands, or if a command with similar amount of functionality code were to be created. Therefore, I decided to make a module that would handle command-exclusive argument and permission checking and with additional utility features that would be hard to implement otherwise. This would be yet another complex feature implemented to the bot to maintain  the developing productivity and improve user experience as a result of reduced errors and unexpected behaviour caused by invalid input data.
+The main theme of the bot is a good User Experience (UX), which is to be able to perform complex tasks with ease of use. However, with time, spuiiBot grew as new commands and functionalities were being added and made the overall code relatively large and complex, and adding new code often involved repeating old functionalities to make the new code exeuctable. Some of these old functionalities are chains of permission and argument checks, which also needed to generate a command-specific Error Message to rightly guide the user in using that command. In most cases, these checks were often larger than the actual functionality code of the command, making a huge clutter and reducing productivity in developing these commands, or if a command with similar amount of functionality code were to be created. Therefore, I decided to make a module that would handle command-exclusive argument and permission checking and with additional utility features that would be hard to implement otherwise. This would be yet another complex feature implemented to the bot to maintain the developing productivity and improve user experience as a result of reduced errors and unexpected behaviour caused by invalid input data.
 
-A Permission Handler was easy to make as I just had to define the permissions in a command's code required to run that command and then intercept this data when the command is being run to resolve and validate permissions of the instances (member/bot) defined in the data. My focus now shifts to Argument Handler, which is a more complex module, and will be my main focus in this article.
+A Permission Handler was easy to make as I just had to define the permissions in a command's code required to run that command and then intercept this data when the command is being run to resolve and validate permissions of the instances (member/bot) defined in the data. My focus now shifts to **Argument Handler**, which is a more complex module, and will be my main focus in this article.
 
-## Introduction to Argument Handler
-First of all, we have to determine what kind of messages will trigger command message responses by spuiiBot, so we'll be going with the default prefix-command-arguments format (`$command arguments`, `$` is the default prefix), where `command` is the command name preceeded by a prefix and followed by `arguments`, which is the command's arguments. The bot will check if the [`content` property](https://discord.js.org/#/docs/main/stable/class/Message?scrollTo=content) of each [Message object](https://discord.js.org/#/docs/main/stable/class/Message) (received from Discord API) starts with the prefix `$`, and if it does, then it will extract the command name from the message and check if it has a command with that name. If we do, then we extract the rest of the user message (which will be considered as the command's arguments, as indicated by the command format) and pass it to the **Argument Handler** along with the selected command's [Command Argument Structure Object](#command-argument-structure-object). The Argument handler will process the arguments to give us the desired format of the raw arguments in program-interceptable data. Once we receive the processed arguments, we pass them to the command for it to execute. This process is done natively in the `message` event callback.
+## Introduction to Argument Handling
+First of all, we have to determine a format for messages that resemble a *Command Message*, which is a message sent with an intent to execute a command. The user will have to comply with this format each time they want to run a command, with some execptions where the bot will rightly guide the user as necessary.
 
-Moving on to the Argument Handler, the main function of it is to parse command arguments to a program-interceptable format and perform validation checks to verify the data, along with performing some additional features to enhance the functionality.
+### General Command Usage
+We'll be using the general prefixed-command-arguments format which looks something like this: `$command arguments?`. If you've developed a bot then you should be familiar with this (but should not skip this section). We'll be breaking down this format into three parts: Prefix, Command and Arguments.
+
+#### Prefix
+```
+$command arguments?
+^
+```
+A prefix is a word, letter or number added before another. In the Command Usage format, a prefix is a series of characters at the beginning of a message that serves the purpose of an indication of a Command Message to the bot. By default, the prefix is `$` and this can be accessed and changed through the `$prefix` command. It can be changed to any series of non-whitespace characters that contains at least one symbol character and has at least 1 character and at most 3 characters. If the user provides an incorrect prefix, the bot will simply ignore the message as it failed to meet the Command Message format criteria.
+
+#### Command
+```
+$command arguments?
+ ^^^^^^^
+```
+A command is a case-insensitive word or character(s) immediately following the prefix which is the name of the command that the user is intending to use. The length of a command name depends on the commands that are registered on the bot. In case an invalid command name is provided, the bot will again simply ignore the message as the user could have used the characters of the prefix in their message without an intent to run a command.
+
+#### Arguments
+```
+$command arguments?
+         ^^^^^^^^^^
+```
+The arguments are the user's input to a command according to that command's *parameters*, which is the data a command accepts in order to function in a certain way. There are cases such as when arguments are not accepted by a command if no parameters are defined, both providing and not providing arguments is accepted when parameters are defined but the command still works without arguments, and where it is mandatory to provide arguments when parameters are defined and the command does not work without data provided.
+
+This data the user provides as arguments to each command has to be in a certain format too. When providing arguments to parameters, the user intends to provide a *certain value* to a *specific parameter*, usually in series if the command has multiple parameters (thus accepts multiple arguments). This series of arguments has to be in an order, which is defined in the command and can be seen through the help menu of that command. There also has to be a *delimiter* in order for the bot to be able to distinguish between arguments in order to specify for which parameters the *argument segments* are provided to. This will be further discussed in [Argument Parsing](#parsing).
+
+The Argument Handler will be handling *this* section of Command Messages as it is where we can invest some complexity to introduce a range of new functionalities to the bot.
+
+### Argument Handling Implementation
+Now that you have understood the General Command Usage format, we can jump to discussing the implementation of handling Command Messages. First, the bot will check if the user's message's content (accessed through the [`content` property](https://discord.js.org/#/docs/main/stable/class/Message?scrollTo=content) of each [Message Object](https://discord.js.org/#/docs/main/stable/class/Message), received from the Discord API) begins with a prefix, which indicates that the user might be intending to use a command. If it does, the bot will extract the command name from the message and check if a command goes by that extracted command name. If the command is found, then it will extract the rest of the message's content (which will be considered as the command's arguments in series) and pass it to the **Argument Handler** along with the selected command's [Command Argument Structure Object](#command-argument-structure-object) for validation. The Argument Handler will process the arguments to give the desired format of the arguments in program-interceptable data so that they can be passed to the selected command for it to execute, or in case of any errors, give the error data so that the bot can send them back to the channel where the user sent the message in so that the user can see this error and respond to it. This process is done natively in the `message` event callback and is ***not*** a part of the Argument Handler, but complements it by extracting and providing it the necessary data for it to function.
+
+Before moving onto the algorithm and implementation of Argument Handler, you will need to go through the [first data structure](#command-argument-structure-object-read-only) under the [Data Structures section](#data-structures) below. After that, you can choose to proceed to the [next section](#parsing) as the rest of the data structures have their context given throughout this article, and you can visit that data structure's section when mentioned in the article.
 
 
 ## Data Structures
-Before we jump to the algorithm, we will look at data structures that are developed for this module. Having a fixed data structure is necessary as it provides expected behaviour by giving fixed meaning to each key of the data structure, maintaining code readibility and easy to debug.
+This section contains data structures that are developed for this module. Having a fixed data structure is highly recommended as it provides expected behaviour by giving fixed meaning (and the data type in most cases) to each property of the data structure and the only modification applied to it is scaling of the value of each meaning. This helps maintaining code readibility and makes it easy to debug.
 
 ### Command Argument Structure Object (Read-Only)
 Starting off, we'll discuss the **Command Argument Structrue Object** (`argStructure` for short) which holds the overall argument structure of a command, which will be used to evaulate the arguments of its commands. 
