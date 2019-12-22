@@ -8,7 +8,7 @@ An argument handling module for spuiiBot.
      - [Prefix](#prefix)
      - [Command](#command)
      - [Arguments](#arguments)
-   - [Implementation](#argument-handling-implementation)
+   - [Implementation](#intro-implementation)
  - [Data Structures](#data-structures)
    - [Command Argument Structure Object](#command-argument-structure-object-read-only)
      - [Main Object](#main-object)
@@ -70,7 +70,7 @@ This data the user provides as arguments to each command has to be in a certain 
 
 The Argument Handler will be handling *this* section of Command Messages as it is where we can invest some complexity to introduce a range of new functionalities to the bot.
 
-### Argument Handling Implementation
+### <span id="intro-implementation">Implementation</span>
 Now that you have understood the General Command Usage format, we can jump to discussing the implementation of handling Command Messages. First, the bot will check if the user's message's content (accessed through the [`content` property](https://discord.js.org/#/docs/main/stable/class/Message?scrollTo=content) of each [Message Object](https://discord.js.org/#/docs/main/stable/class/Message), received from the Discord API) begins with a prefix, which indicates that the user might be intending to use a command. If it does, the bot will extract the command name from the message and check if a command goes by that extracted command name. If the command is found, then it will extract the rest of the message's content (which will be considered as the command's arguments in series) and pass it to the **Argument Handler** along with the selected command's [Command Argument Structure Object](#command-argument-structure-object) for validation. The Argument Handler will process the arguments to give the desired format of the arguments in program-interceptable data so that they can be passed to the selected command for it to execute, or in case of any errors, give the error data so that the bot can send them back to the channel where the user sent the message in so that the user can see this error and respond to it. This process is done natively in the `message` event callback and is ***not*** a part of the Argument Handler, but complements it by extracting and providing it the necessary data for it to function.
 
 Before moving onto the algorithm and implementation of Argument Handler, you will need to go through the [first data structure](#command-argument-structure-object-read-only) under the [Data Structures section](#data-structures) below. After that, you can choose to proceed to the [next section](#parsing) as the rest of the data structures have their context given throughout this article, and you can visit that data structure's section when mentioned in the article.
