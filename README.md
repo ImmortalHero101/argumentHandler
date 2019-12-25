@@ -360,6 +360,7 @@ This data structure represents the outcome of the validation of arguments, and i
 
 
 ## Parsing
+*This section is incomplete*
 The first step is to parse the arguments. This part involves splitting the argument string into separate parts, each representing a single argument *to* one of the command's parameter (in order of left to right). We'll be looking out for 2 details when determining whether a part of this argument string is a single argument: Single words and Quoted text.
 
 Picking out single words is relatively easy as each word is a series of character, in series, that is *not* a space character (other whitespace characters are considered as a part of the word). Therefore, we can use a space character as the split key to break down the argument into its segments, and each segment would almost represent a single argument. As the space character is used as a split key and the argument can have multiple space characters in series, the resulting Array would contain blank elements due to this, which can be worked around with by filtering the array to remove any 'falsey' values (by passing the Boolean constructor as the callback to the filter method).
